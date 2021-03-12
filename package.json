@@ -9,7 +9,7 @@
     "keywords": [],
     "author": "",
     "license": "ISC",
-	"type": "module",
+    "type": "module",
     "dependencies": {
         "chalk": "^4.1.0",
         "compression": "^1.7.4",
@@ -18,5 +18,8 @@
         "https": "^1.0.0",
         "request": "^2.88.2",
         "yaml": "^1.10.0"
+    },
+    "devDependencies": {
+        "eslint": "^7.21.0"
     }
 }
