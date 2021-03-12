@@ -1,0 +1,22 @@
+{
+    "name": "webserver-proxy",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+	"type": "module",
+    "dependencies": {
+        "chalk": "^4.1.0",
+        "compression": "^1.7.4",
+        "express": "^4.17.1",
+        "http": "0.0.1-security",
+        "https": "^1.0.0",
+        "request": "^2.88.2",
+        "yaml": "^1.10.0"
+    }
+}
