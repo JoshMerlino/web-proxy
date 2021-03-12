@@ -11,7 +11,7 @@ import compression from "compression";
 const configs = {};
 
 // Initialize stats
-let stats;
+let stats = {};
 
 // Add methods to console
 console.info = function(){ console.log(chalk.blue("[INFO]"), ...arguments); };
@@ -36,6 +36,8 @@ let sampleTimes = [];
 	} catch (e) {
 		stats = {};
 	}
+
+	console.log(stats);
 
 	// Redirect HTTP to HTTPS
 	app.all("*", ({ secure, hostname, url }, res, next) => {
@@ -85,7 +87,7 @@ let sampleTimes = [];
 		stats.req_per_second = reqPerSecond;
 		stats.req_counter = reqCounter;
 
-		sampleTimes = sampleTimes.arr.slice(0, 100);
+		sampleTimes = sampleTimes.slice(0, 100);
 		stats.avg_response_time = sampleTimes.reduce((sum, el) => sum + el, 0);
 
 		await fs.writeFile("./stats.db", JSON.stringify(stats, null, 4), "utf8");
@@ -97,7 +99,7 @@ let sampleTimes = [];
 	app.use(compression());
 
 	// Start HTTP server
-	http.createServer(app).listen(80);
+	http.createServer(app).listen(8000);
 
 	// Start HTTPS server
 	(async function() {
