@@ -1,62 +1,78 @@
-import asyncRequireContext from "async-require-context";
-import chalk from "chalk";
-import { Express } from "express";
-import { readFileSync } from "fs";
-import { readFile, readdir } from "fs/promises";
+import { Express } from "express-serve-static-core";
+import JSONStore from "filestore-json";
+import path from "path";
+import proxy from "request";
+import fs from "fs/promises";
 import http from "http";
+import YAML from "yaml";
 import https from "https";
-import { resolve } from "path";
+import chalk from "chalk";
 
-const { webserver } = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
+interface ConfigurationFile {
+	port?: string;
+	"local-port"?: string;
+	error?: true;
+}
 
+// Cache configs
+const configs = <Record<string, ConfigurationFile>>{};
+
+// Run proxy server
 export default async function server(app: Express): Promise<void> {
 
-	// Apply all middlewares
-	const middlewares = await asyncRequireContext<Middleware>("./lib/src/middleware").catch(() => []);
-	middlewares.map(middleware => {
-		app.use(middleware.module.default);
-		console.info(chalk.magenta("MDW"), "Added middleware from", chalk.cyan(middleware.path));
-	});
+	// Use Stats
+	// ; const stats = JSONStore.from(path.resolve("./stats.json"));
 
-	// Apply all runtimes
-	const runtimes = await asyncRequireContext<Runtime>("./lib/src/runtime").catch(() => []);
-	runtimes.map(runtime => {
-		runtime.module.default(app);
-		console.info(chalk.yellow("RNT"), "Added runtime from", chalk.cyan(runtime.path));
+	// Redirect HTTP to HTTPS
+	app.all("*", ({ secure, hostname, url }, res, next) => {
+		if (secure) return next();
+		res.redirect(`https://${hostname}${url}`);
 	});
-
-	// Get all API endpoints and add them to the app context.
-	const endpoints = await asyncRequireContext<Endpoint>("./lib/api").catch(() => []);
-	endpoints.map(function(endpoint) {
-		const routes = typeof endpoint.module.route === "string" ? [ endpoint.module.route ] : endpoint.module.route;
-		routes.map(route => app.all(`/api/${route}`, endpoint.module.default));
-		console.info(chalk.greenBright("EDP"), "Added API endpoints from", chalk.cyan(endpoint.path));
-	});
-
-	// Get port to listen on (HTTP)
-	const PORT = process.env.PORT || webserver.http.port;
-	const SSL_PORT = process.env.SSL_PORT || webserver.https.port;
 
 	// Start HTTP server
-	http.createServer(app).listen(PORT);
-	console.info(chalk.redBright("SRV"), "HTTP server running on", chalk.cyan(`:${PORT} (http)`));
+	http.createServer(app).listen(8000);
 
 	// Start HTTPS server
-	if (webserver.https.enabled) {
+	const list = await fs.readdir("/etc/letsencrypt/live/", { withFileTypes: true });
+	const HTTPS = https.createServer(app);
 
-		let files = await readdir(resolve(webserver.https.certs));
-		files = files.map(file => resolve(webserver.https.certs, file));
+	list.filter(dirent => dirent.isDirectory())
+		.map(async function({ name }) {
+			console.info(chalk.yellow("[SSL]"), "Added SSL context for", chalk.cyan(name));
+			HTTPS.addContext(name, {
+				cert: await fs.readFile(`/etc/letsencrypt/live/${name}/cert.pem`),
+				key: await fs.readFile(`/etc/letsencrypt/live/${name}/privkey.pem`)
+			});
+		});
+	HTTPS.listen(443);
 
-		const key = files.filter(file => file.includes("key"))[0];
-		const cert = files.filter(file => file.includes("cert"))[0];
+	// Proxy HTTP
+	app.all("*", async function(req, res) {
 
-		// Initialize HTTPS server
-		https.createServer({
-			key: await readFile(key, "utf8"),
-			cert: await readFile(cert, "utf8")
-		}, app).listen(SSL_PORT);
-		console.info(chalk.redBright("SRV"), "SSL server running on", chalk.cyan(`:${SSL_PORT} (https)`));
+		// Get requested server by origin
+		const origin = req.headers.host;
+		res.header("Access-Control-Allow-Origin", origin);
+		res.header("Access-Control-Allow-Headers", "X-Requested-With");
+		res.header("Access-Control-Allow-Headers", "Content-Type");
 
-	}
+		// Get origin
+		if (!origin) return res.status(400).send("400 Bad Request! The 'host' header must be set when making requests to this server.");
+
+		// Get config
+		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
+		if (!config || config.error === true) return res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
+
+		// Log request as being served
+		console.info("Served:", chalk.cyan(origin + req.url));
+
+		// Initialize proxy request
+		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
+
+		// Proxy HTTP server
+		req
+			.pipe(proxyRequest)
+			.pipe(res);
+
+	});
 
 }
