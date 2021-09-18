@@ -77,12 +77,6 @@ export default async function server(app: Express): Promise<void> {
 
 	// Every second dump stats
 	setInterval(function() {
-
-		console.log({
-			req_per_second,
-			req_counter
-		});
-
 		stats.value = {
 			req_per_second,
 			req_counter
