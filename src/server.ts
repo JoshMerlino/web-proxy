@@ -20,6 +20,7 @@ export default async function server(app: Express): Promise<void> {
 	let { req_per_second, req_counter } = stats.value;
 
 	// Redirect HTTP to HTTPS
+	app.enable("trust proxy");
 	app.all("*", ({ secure, hostname, url }, res, next) => {
 		if (secure) return next();
 		res.redirect(`https://${hostname}${url}`);
