@@ -12,6 +12,9 @@ import chalk from "chalk";
 // Cache configs
 const configs = <Record<string, ConfigurationFile>>{};
 
+// Get port server should run on
+const PORT = process.env.PORT || 80;
+
 // Run proxy server
 export default async function server(app: Express): Promise<void> {
 
@@ -50,7 +53,7 @@ export default async function server(app: Express): Promise<void> {
 		res.header("Access-Control-Allow-Headers", "Content-Type");
 
 		// Log request as being served
-		console.info("Served:", chalk.cyan(`${req.protocol}://${chalk.yellow(origin)}${req.url}`));
+		console.info("Served:", chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`));
 
 		// Add to stats
 		req_per_second++;
@@ -67,14 +70,13 @@ export default async function server(app: Express): Promise<void> {
 		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
 
 		// Proxy HTTP server
-		req.pipe(proxyRequest)
-			.pipe(res);
+		req.pipe(proxyRequest).pipe(res);
 
 	});
 
 	// Start HTTP server
-	http.createServer(app).listen(process.env.PORT || 8000);
-	console.info("Started HTTP server on", chalk.cyan(`:${process.env.PORT || 8000}`));
+	http.createServer(app).listen(PORT);
+	console.info("Started HTTP server on", chalk.cyan(`:${PORT}`));
 
 	// Every second dump stats
 	setInterval(function() {
