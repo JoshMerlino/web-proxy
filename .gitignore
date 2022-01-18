@@ -2,3 +2,4 @@ node_modules/
 lib/
 stats.json
 pnpm-lock.yaml
+screenlog.*
