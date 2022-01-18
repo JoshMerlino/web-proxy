@@ -8,6 +8,7 @@ import http from "http";
 import YAML from "yaml";
 import https from "https";
 import chalk from "chalk";
+import { existsSync } from "fs";
 
 // Cache configs
 const configs = <Record<string, ConfigurationFile>>{};
@@ -47,7 +48,7 @@ export default async function server(app: Express): Promise<void> {
 	app.all("*", async function(req, res) {
 
 		// Get requested server by origin
-		const origin = req.hostname || req.headers.host?.split(":")[0];
+		const origin = (req.hostname || req.headers.host?.split(":")[0])?.toLowerCase();
 		res.header("Access-Control-Allow-Origin", origin);
 		res.header("Access-Control-Allow-Headers", "X-Requested-With");
 		res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -64,7 +65,14 @@ export default async function server(app: Express): Promise<void> {
 		// Get config
 		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
 
-		if (!config || config.error === true) return res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
+		// If its a redirect
+		if (!config || config.error === true) {
+			if(existsSync(path.resolve(`../.redirects/${origin}`))) {
+				const redirect = await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
+				return res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`)
+			}
+			return res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
+		}
 
 		// Initialize proxy request
 		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
