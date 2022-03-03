@@ -123,7 +123,7 @@ export default async function server(app: Express): Promise<void> {
 		stats.value = {
 			req_per_second,
 			req_counter,
-			response_time: response_time
+			response_time: Math.trunc(response_time/req_per_second)
 		};
 		req_counter += req_per_second;
 		req_per_second = 0;
