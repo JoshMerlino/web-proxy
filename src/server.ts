@@ -56,7 +56,7 @@ export default async function server(app: Express): Promise<void> {
 			chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`),
 			chalk.magenta(req.method),
 			chalk.greenBright(res.statusCode),
-			chalk.yellowBright(`${process.hrtime.bigint() - timestamp}ms`)
+			chalk.yellowBright(`${rt}ms`)
 		);
 		response_time += rt;
 	}
