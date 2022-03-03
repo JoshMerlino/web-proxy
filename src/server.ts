@@ -47,7 +47,8 @@ export default async function server(app: Express): Promise<void> {
 	HTTPS.listen(443);
 
 	// Finalize logging
-	function finalize(timestamp: number, req: Request, res: Response, origin: string) {
+	function finalize(timestamp: bigint, req: Request, res: Response, origin: string) {
+		const rt = Math.floor(Number(process.hrtime.bigint() - timestamp) / 1000) / 1000;
 		// Log response to console
 		console.info(
 			chalk.blueBright("OUB"),
@@ -55,16 +56,16 @@ export default async function server(app: Express): Promise<void> {
 			chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`),
 			chalk.magenta(req.method),
 			chalk.greenBright(res.statusCode),
-			chalk.yellowBright(`${Date.now() - timestamp}ms`)
+			chalk.yellowBright(`${process.hrtime.bigint() - timestamp}ms`)
 		);
-		response_time += Date.now() - timestamp;
+		response_time += rt;
 	}
 
 	// Proxy HTTP
 	app.all("*", async function(req, res) {
 
 		// Get timestamp
-		const timestamp = Date.now();
+		const timestamp = process.hrtime.bigint();
 
 		// Get requested server by origin
 		const origin = (req.hostname || req.headers.host?.split(":")[0])?.toLowerCase();
@@ -123,7 +124,7 @@ export default async function server(app: Express): Promise<void> {
 		stats.value = {
 			req_per_second,
 			req_counter,
-			response_time: Math.trunc(response_time/req_per_second)
+			response_time: response_time/req_per_second ?? 0
 		};
 		req_counter += req_per_second;
 		req_per_second = 0;
