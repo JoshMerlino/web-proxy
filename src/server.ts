@@ -48,6 +48,7 @@ export default async function server(app: Express): Promise<void> {
 
 	// Finalize logging
 	function finalize(timestamp: bigint, req: Request, res: Response, origin: string) {
+		const rt = Math.floor(Number(process.hrtime.bigint() - timestamp) / 1000) / 1000;
 		// Log response to console
 		console.info(
 			chalk.blueBright("OUB"),
@@ -57,7 +58,7 @@ export default async function server(app: Express): Promise<void> {
 			chalk.greenBright(res.statusCode),
 			chalk.yellowBright(`${process.hrtime.bigint() - timestamp}ms`)
 		);
-		response_time += Number(process.hrtime.bigint() - timestamp);
+		response_time += rt;
 	}
 
 	// Proxy HTTP
@@ -123,7 +124,7 @@ export default async function server(app: Express): Promise<void> {
 		stats.value = {
 			req_per_second,
 			req_counter,
-			response_time: response_time/req_per_second
+			response_time: response_time/req_per_second ?? 0
 		};
 		req_counter += req_per_second;
 		req_per_second = 0;
