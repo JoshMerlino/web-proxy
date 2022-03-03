@@ -107,7 +107,9 @@ export default async function server(app: Express): Promise<void> {
 		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
 
 		// Proxy HTTP server
-		req.pipe(proxyRequest).pipe(res);
+		req.pipe(proxyRequest)
+			.pipe(res)
+			.once("finish", () => finalize(timestamp, req, res, origin));
 
 	});
 
