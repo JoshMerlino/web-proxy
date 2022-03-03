@@ -9,6 +9,7 @@ import YAML from "yaml";
 import https from "https";
 import chalk from "chalk";
 import { existsSync } from "fs";
+import { Request, Response } from "express";
 
 // Cache configs
 const configs = <Record<string, ConfigurationFile>>{};
@@ -34,6 +35,7 @@ export default async function server(app: Express): Promise<void> {
 	const list = await fs.readdir("/etc/letsencrypt/live/", { withFileTypes: true });
 	const HTTPS = https.createServer(app);
 
+	// Install SSL erts
 	list.filter(dirent => dirent.isDirectory())
 		.map(async function({ name }) {
 			console.info("Started SSL server on", chalk.cyan(":443"));
@@ -44,8 +46,24 @@ export default async function server(app: Express): Promise<void> {
 		});
 	HTTPS.listen(443);
 
+	// Finalize logging
+	function finalize(timestamp: number, req: Request, res: Response, origin: string) {
+		// Log response to console
+		console.info(
+			chalk.blueBright("OUB"),
+			"->",
+			chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`),
+			chalk.magenta(req.method),
+			chalk.greenBright(res.statusCode),
+			chalk.yellowBright(`${Date.now() - timestamp}ms`)
+		);
+	}
+
 	// Proxy HTTP
 	app.all("*", async function(req, res) {
+
+		// Get timestamp
+		const timestamp = Date.now();
 
 		// Get requested server by origin
 		const origin = (req.hostname || req.headers.host?.split(":")[0])?.toLowerCase();
@@ -53,14 +71,23 @@ export default async function server(app: Express): Promise<void> {
 		res.header("Access-Control-Allow-Headers", "X-Requested-With");
 		res.header("Access-Control-Allow-Headers", "Content-Type");
 
-		// Log request as being served
-		console.info("Served:", chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`));
-
 		// Add to stats
 		req_per_second++;
 
 		// Get origin
-		if (!origin) return res.status(400).send("400 Bad Request! The 'host' header must be set when making requests to this server.");
+		if (!origin) {
+			res.status(400).send("400 Bad Request! The 'host' header must be set when making requests to this server.");
+			return;
+		}
+
+		// Log request as being served
+		console.info(
+			chalk.blueBright("INB"),
+			"<-",
+			chalk.cyan(`${chalk.magenta(req.protocol)}${chalk.gray("://")}${chalk.yellow(origin)}${req.url}`),
+			chalk.magenta(req.method),
+			chalk.redBright(req.secure ? "":"INSECURE")
+		);
 
 		// Get config
 		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
@@ -69,16 +96,20 @@ export default async function server(app: Express): Promise<void> {
 		if (!config || config.error === true) {
 			if (existsSync(path.resolve(`../.redirects/${origin}`))) {
 				const redirect = await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
-				return res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
+				res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
+				return finalize(timestamp, req, res, origin);
 			}
-			return res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
+			res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
+			return finalize(timestamp, req, res, origin);
 		}
 
 		// Initialize proxy request
 		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
 
 		// Proxy HTTP server
-		req.pipe(proxyRequest).pipe(res);
+		req.pipe(proxyRequest)
+			.pipe(res)
+			.once("finish", () => finalize(timestamp, req, res, origin));
 
 	});
 
