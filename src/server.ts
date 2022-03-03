@@ -67,9 +67,9 @@ export default async function server(app: Express): Promise<void> {
 
 		// If its a redirect
 		if (!config || config.error === true) {
-			if(existsSync(path.resolve(`../.redirects/${origin}`))) {
+			if (existsSync(path.resolve(`../.redirects/${origin}`))) {
 				const redirect = await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
-				return res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`)
+				return res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
 			}
 			return res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
 		}
