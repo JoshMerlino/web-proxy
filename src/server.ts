@@ -21,8 +21,8 @@ const PORT = process.env.PORT || 80;
 export default async function server(app: Express): Promise<void> {
 
 	// Use Stats
-	const stats = JSONStore.from(path.resolve("./stats.json"), { req_counter: 0, req_per_second: 0 });
-	let { req_per_second, req_counter } = stats.value;
+	const stats = JSONStore.from(path.resolve("./stats.json"), { req_counter: 0, req_per_second: 0, response_time: 0 });
+	let { req_per_second, req_counter, response_time } = stats.value;
 
 	// Redirect HTTP to HTTPS
 	app.enable("trust proxy");
@@ -57,6 +57,7 @@ export default async function server(app: Express): Promise<void> {
 			chalk.greenBright(res.statusCode),
 			chalk.yellowBright(`${Date.now() - timestamp}ms`)
 		);
+		response_time += Date.now() - timestamp;
 	}
 
 	// Proxy HTTP
@@ -121,10 +122,12 @@ export default async function server(app: Express): Promise<void> {
 	setInterval(function() {
 		stats.value = {
 			req_per_second,
-			req_counter
+			req_counter,
+			response_time: response_time
 		};
 		req_counter += req_per_second;
 		req_per_second = 0;
+		response_time = 0;
 	}, 1000);
 
 }
