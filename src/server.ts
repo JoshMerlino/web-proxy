@@ -57,7 +57,7 @@ export default async function server(app: Express): Promise<void> {
 			chalk.greenBright(res.statusCode),
 			chalk.yellowBright(`${process.hrtime.bigint() - timestamp}ms`)
 		);
-		response_time += Number(process.hrtime.bigint() - timestamp) % 1000000;
+		response_time += Number(process.hrtime.bigint() - timestamp);
 	}
 
 	// Proxy HTTP
