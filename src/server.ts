@@ -13,6 +13,7 @@ import { Request, Response } from "express";
 
 // Cache configs
 const configs = <Record<string, ConfigurationFile>>{};
+const redirects = <Record<string, string>>{};
 
 // Get port server should run on
 const PORT = process.env.PORT || 80;
@@ -97,8 +98,12 @@ export default async function server(app: Express): Promise<void> {
 		// If its a redirect
 		if (!config || config.error === true) {
 			if (existsSync(path.resolve(`../.redirects/${origin}`))) {
-				const redirect = await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
-				res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
+				const redirect = redirects.hasOwnProperty(origin) ? redirects[origin] : await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
+				if (redirect[0] === "*") {
+					res.send(`<meta http-equiv="refresh" content="0;URL='${origin.substring(1)}${req.path}'" />  `);
+				} else {
+					res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
+				}
 				return finalize(timestamp, req, res, origin);
 			}
 			res.status(400).send(`400 Bad Request! The host '${origin}' was not found on this server.`);
