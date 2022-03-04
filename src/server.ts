@@ -101,7 +101,7 @@ export default async function server(app: Express): Promise<void> {
 				const redirect = redirects.hasOwnProperty(origin) ? redirects[origin] : redirects[origin] = await fs.readFile(path.resolve(`../.redirects/${origin}`), "utf8");
 				console.log(`${req.protocol}://${origin.substring(1)}${req.path}`, redirect);
 				if (redirect[0] === "*") {
-					res.send(`<meta http-equiv="refresh" content="0;URL='${req.protocol}://${origin.substring(1)}${req.path}'" />  `);
+					res.send(`<meta http-equiv="refresh" content="0;URL='${req.protocol}://${redirect.substring(1)}${req.path}'" />  `);
 				} else {
 					res.redirect(`https://${redirect}${req.path}?from=${encodeURIComponent(origin)}`);
 				}
