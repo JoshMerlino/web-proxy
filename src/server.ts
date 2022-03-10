@@ -128,7 +128,7 @@ export default async function server(app: Express): Promise<void> {
 	setInterval(function() {
 		stats.value = {
 			req_per_second: req_per_second/60,
-			req_counter,
+			req_counter: Math.ceil(req_counter),
 			response_time: response_time/req_per_second ?? 0
 		};
 		req_counter += req_per_second;
