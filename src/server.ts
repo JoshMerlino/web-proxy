@@ -10,10 +10,12 @@ import https from "https";
 import chalk from "chalk";
 import { existsSync } from "fs";
 import { Request, Response } from "express";
+import httpProxy from "http-proxy";
 
 // Cache configs
 const configs = <Record<string, ConfigurationFile>>{};
 const redirects = <Record<string, string>>{};
+const proxies = <Record<string, httpProxy>>{};
 
 // Get port server should run on
 const PORT = process.env.PORT || 80;
@@ -112,18 +114,34 @@ export default async function server(app: Express): Promise<void> {
 		}
 
 		// Initialize proxy request
-		const proxyRequest = proxy(`http://localhost:${config["local-port"] || config.port}${req.url}`);
+		const target = `http://localhost:${config["local-port"] || config.port}`;
+		const proxy = target in proxies ? proxies[target] : proxies[target] = httpProxy.createProxyServer({ target, ws: true });
 
 		// Proxy HTTP server
-		req.pipe(proxyRequest)
-			.pipe(res)
-			.once("finish", () => finalize(timestamp, req, res, origin));
+		proxy.web(req, res, {}, () => finalize(timestamp, req, res, origin));
 
 	});
 
 	// Start HTTP server
-	http.createServer(app).listen(PORT);
+	const server = http.createServer(app).listen(PORT);
 	console.info("Started HTTP server on", chalk.cyan(`:${PORT}`));
+
+	server.on("upgrade", async function(req, socket, head) {
+
+		// Get requested server by origin
+		const origin = req.headers.host!.split(":")[0]!.toLowerCase();
+
+		// Get config
+		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
+
+		// Initialize proxy request
+		const target = `http://localhost:${config["local-port"] || config.port}`;
+		const proxy = target in proxies ? proxies[target] : proxies[target] = httpProxy.createProxyServer({ target, ws: true });
+
+		console.log("proxying upgrade request", req.url);
+		proxy.ws(req, socket, head);
+
+	});
 
 	// Every second dump stats
 	setInterval(function() {
