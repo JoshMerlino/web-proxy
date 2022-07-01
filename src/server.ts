@@ -118,7 +118,8 @@ export default async function server(app: Express): Promise<void> {
 		const proxy = target in proxies ? proxies[target] : proxies[target] = httpProxy.createProxyServer({ target, ws: true });
 
 		// Proxy HTTP server
-		proxy.web(req, res, {}, () => finalize(timestamp, req, res, origin));
+		proxy.web(req, res, {});
+		return finalize(timestamp, req, res, origin);
 
 	});
 
