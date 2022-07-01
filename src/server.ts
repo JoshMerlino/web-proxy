@@ -124,8 +124,16 @@ export default async function server(app: Express): Promise<void> {
 	});
 
 	// Start HTTP server
-	http.createServer(app).listen(PORT);
+	const server = http.createServer(app).listen(PORT);
 	console.info("Started HTTP server on", chalk.cyan(`:${PORT}`));
+
+	server.on("upgrade", async function(req, socket, head) {
+		const origin = req.headers.host!.split(":")[0].toLowerCase();
+		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
+		const target = `http://localhost:${config["local-port"] || config.port}`;
+		const proxy = target in proxies ? proxies[target] : proxies[target] = httpProxy.createProxyServer({ target, ws: true });
+		proxy.ws(req, socket, head);
+	});
 
 	// Every second dump stats
 	setInterval(function() {
