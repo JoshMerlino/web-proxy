@@ -131,6 +131,8 @@ export default async function server(app: Express): Promise<void> {
 		// Get requested server by origin
 		const origin = req.headers.host!.split(":")[0]!.toLowerCase();
 
+		console.log(origin);
+
 		// Get config
 		const config = configs.hasOwnProperty(origin) ? configs[origin] : configs[origin] = <ConfigurationFile>YAML.parse(await fs.readFile(`../${origin}/config.yml`, "utf8").catch(() => "error: true"));
 
