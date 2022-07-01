@@ -119,7 +119,7 @@ export default async function server(app: Express): Promise<void> {
 
 		// Proxy HTTP server
 		proxy.web(req, res, {});
-		return finalize(timestamp, req, res, origin);
+		proxy.once("end", () => finalize(timestamp, req, res, origin));
 
 	});
 
