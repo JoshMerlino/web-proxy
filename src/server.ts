@@ -27,8 +27,9 @@ export default async function server(app: Express): Promise<void> {
 
 	// Redirect HTTP to HTTPS
 	app.enable("trust proxy");
-	app.all("*", ({ secure, hostname, url }, res, next) => {
+	app.all("*", ({ secure, hostname, url, protocol }, res, next) => {
 		if (secure) return next();
+		if (!protocol.startsWith("http")) return next();
 		res.redirect(`https://${hostname}${url}`);
 	});
 
